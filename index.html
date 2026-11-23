@@ -25,9 +25,9 @@ button:active{transform:scale(.96)}
 main{flex:1;min-height:0;display:flex;flex-direction:column}
 .view{display:none;flex:1;min-height:0}.view.on{display:flex}
 #kasse{gap:10px;padding:10px;flex-direction:column}
-.grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;align-content:start}
-.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:12px 6px;min-height:118px;position:relative}
-.tile .e{font-size:48px;line-height:1}.tile .n{font-weight:700;text-align:center;font-size:16px}.tile .p{color:var(--mut);font-size:15px}
+.grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));grid-auto-flow:dense;gap:10px;align-content:start}
+.tile{--z:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:calc(12px*var(--z)) 4px;min-height:calc(118px*var(--z));position:relative}
+.tile .e{font-size:calc(48px*var(--z));line-height:1}.tile .n{font-weight:700;text-align:center;font-size:max(15px,calc(16px*var(--z)))}.tile .p{color:var(--mut);text-align:center;font-size:max(13px,calc(14px*var(--z)))}
 .badge{position:absolute;top:6px;right:6px;background:var(--acc);color:#fff;min-width:30px;height:30px;border-radius:15px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 8px}
 .cart{background:var(--card);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 0 0 2px var(--line) inset}
 .lines{max-height:26vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
@@ -40,7 +40,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .tot{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;font-size:28px}
 .tot small{font-size:15px;color:var(--mut);font-weight:500}
 .mut{color:var(--mut);font-size:15px}
-@media (min-width:820px){#kasse{flex-direction:row}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.cart{width:340px;flex:none}.lines{max-height:none;flex:1}}
+@media (min-width:820px){#kasse{flex-direction:row}.grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.cart{width:340px;flex:none}.lines{max-height:none;flex:1}}
 nav{display:flex;gap:8px;padding:8px 10px;background:var(--card);border-top:2px solid var(--line)}
 nav button{flex:1;height:64px;font-size:15px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:none;background:transparent}
 nav button span{font-size:30px;line-height:1}nav button.on{background:var(--sel);color:var(--acc)}
@@ -66,6 +66,10 @@ nav button span{font-size:30px;line-height:1}nav button.on{background:var(--sel)
 input[type=text],input[type=number]{font:inherit;width:100%;height:52px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);padding:0 12px;user-select:text}
 label{font-weight:600;display:block;margin-bottom:4px}
 .emo{display:flex;flex-wrap:wrap;gap:6px}.emo button{width:48px;height:48px;font-size:26px;padding:0}
+.pf.on{background:var(--acc);color:#fff}
+.tile.rs{background:var(--card);border-radius:16px;box-shadow:0 0 0 2px var(--acc) inset;cursor:default}
+.zc{display:flex;align-items:center;gap:6px;margin-top:6px}.zc .q{width:40px;height:40px;font-size:22px}.zc b{min-width:46px;text-align:center}
+input[type=range]{width:100%;height:36px;accent-color:var(--acc)}
 </style>
 </head>
 <body>
@@ -78,7 +82,7 @@ label{font-weight:600;display:block;margin-bottom:4px}
   <div class="mut" id="pfinfo"></div>
   <div class="row">
    <button class="pf" onclick="ret(1)">♻️ Pfand zurück <span id="retn"></span></button>
-   <button class="pf" onclick="clearCart()">🗑️</button>
+   <button class="pf" onclick="clearCart()">🗑️</button><button class="pf" id="zmb" onclick="toggleZoom()" title="Kachelgröße ändern">🔍</button>
   </div>
   <div class="row"><button class="big" id="payb" onclick="openPay()">💶 Kassieren</button></div>
  </div>
@@ -93,6 +97,7 @@ label{font-weight:600;display:block;margin-bottom:4px}
 </nav>
 <div class="ov" id="payov"><div class="sheet" id="pay"></div></div>
 <div class="ov" id="edov"><div class="sheet" id="ed"></div></div>
+<div class="ov" id="ksov"><div class="sheet" id="ks"></div></div>
 <script>
 const KEY="malerkasse_v1";
 const DEF={pfand:300,products:[
@@ -106,7 +111,7 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const $=s=>document.querySelector(s);
 const fmt=c=>(c/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let cart={},retn=0,given=[];
+let cart={},retn=0,given=[],zoomMode=false;
 
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x==b));
@@ -122,23 +127,36 @@ function add(id,n){cart[id]=Math.max(0,(cart[id]||0)+n);if(!cart[id])delete cart
 function ret(n){retn=Math.max(0,retn+n);renderKasse()}
 function clearCart(){cart={};retn=0;renderKasse()}
 
+const zOf=p=>p.z||1;
+const spanOf=z=>z<1.4?1:z<2?2:3;
+function spans(){
+ const g=$("#grid"),tc=getComputedStyle(g).gridTemplateColumns;
+ const cols=/^[\d.]/.test(tc)?tc.split(" ").length:3;
+ g.querySelectorAll(".tile").forEach(t=>{t.style.gridColumn="span "+Math.min(cols,spanOf(+t.dataset.z))});
+}
+function zoom(id,d){const p=S.products.find(x=>x.id==id);if(!p)return;p.z=Math.min(2.4,Math.max(.8,Math.round((zOf(p)+d)*10)/10));save();renderKasse()}
+function toggleZoom(){zoomMode=!zoomMode;renderKasse()}
+addEventListener("resize",()=>spans());
 function renderKasse(){
- $("#grid").innerHTML=S.products.map(p=>`<button class="tile" onclick="add(${p.id},1)">
- ${cart[p.id]?`<span class="badge">${cart[p.id]}</span>`:""}<span class="e">${esc(p.e)}</span><span class="n">${esc(p.n)}</span>
- <span class="p">${fmt(p.p)}${p.d?" + Pfand":""}</span></button>`).join("")||'<p class="mut">Noch keine Produkte – im Tab „Produkte“ anlegen.</p>';
+ $("#grid").innerHTML=S.products.map(p=>{const z=zOf(p),inner=`<span class="e">${esc(p.e)}</span><span class="n">${esc(p.n)}</span><span class="p">${fmt(p.p)}${p.d?" + Pfand":""}</span>`;
+  return zoomMode
+  ?`<div class="tile rs" data-z="${z}" style="--z:${z}">${inner}<div class="zc"><button class="q" onclick="zoom(${p.id},-.2)">−</button><b>${Math.round(z*100)}%</b><button class="q" onclick="zoom(${p.id},.2)">+</button></div></div>`
+  :`<button class="tile" data-z="${z}" style="--z:${z}" onclick="add(${p.id},1)">${cart[p.id]?`<span class="badge">${cart[p.id]}</span>`:""}${inner}</button>`}).join("")||'<p class="mut">Noch keine Produkte – im Tab „Produkte“ anlegen.</p>';
+ spans();$("#zmb").classList.toggle("on",zoomMode);
  const c=calc();
  $("#lines").innerHTML=S.products.filter(p=>cart[p.id]).map(p=>`<div class="line"><span style="font-size:30px">${esc(p.e)}</span>
  <span class="t">${esc(p.n)}<br><span class="mut">${fmt(p.p*cart[p.id])}</span></span>
  <button class="q" onclick="add(${p.id},-1)">−</button><b style="min-width:22px;text-align:center">${cart[p.id]}</b><button class="q" onclick="add(${p.id},1)">+</button></div>`).join("")
  +(retn?`<div class="line"><span style="font-size:30px">♻️</span><span class="t">Pfand zurück<br><span class="mut">−${fmt(retn*S.pfand)}</span></span><button class="q" onclick="ret(-1)">−</button><b style="min-width:22px;text-align:center">${retn}</b><button class="q" onclick="ret(1)">+</button></div>`:"");
  $("#sum").textContent=fmt(c.total);
- $("#pfinfo").textContent=(c.cups||retn)?`inkl. Pfand: ${c.cups} × ${fmt(S.pfand)}${retn?` − ${retn} zurück`:""} = ${fmt(c.pf)}`:"";
+ $("#pfinfo").textContent=zoomMode?"Kachelgröße mit − / + ändern, danach 🔍 tippen.":(c.cups||retn)?`inkl. Pfand: ${c.cups} × ${fmt(S.pfand)}${retn?` − ${retn} zurück`:""} = ${fmt(c.pf)}`:"";
  $("#retn").textContent=retn?"("+retn+")":"";
  $("#payb").disabled=!(Object.keys(cart).length||retn);
 }
 
 const BILLS=[[10000,"#7d8f69"],[5000,"#d98a3d"],[2000,"#4a7fbf"],[1000,"#d6564f"],[500,"#8a8d8f"]];
 const COINS=[[200,"#b5a05a"],[100,"#a8a8a8"],[50,"#c9a24a"],[20,"#c9a24a"],[10,"#c9a24a"],[5,"#b5683d"],[2,"#b5683d"],[1,"#b5683d"]];
+const DEN=BILLS.concat(COINS);
 const label=v=>v>=100?(v/100)+" €":v+" ct";
 const isBill=v=>v>=500;
 const col=v=>(BILLS.concat(COINS).find(x=>x[0]==v)||[0,"#888"])[1];
@@ -170,21 +188,166 @@ function renderPay(){
 }
 function finish(){
  const c=calc(),sum=given.reduce((a,b)=>a+b,0);
- S.sales.push({t:Date.now(),items:S.products.filter(p=>cart[p.id]).map(p=>({e:p.e,n:p.n,q:cart[p.id],p:p.p})),pf:c.pf,ret:retn,total:c.total,given:sum});
+ S.sales.push({t:Date.now(),items:S.products.filter(p=>cart[p.id]).map(p=>({e:p.e,n:p.n,q:cart[p.id],p:p.p})),pf:c.pf,ret:retn,cups:c.cups,pr:S.pfand,total:c.total,given:sum});
  save();closePay();clearCart();
 }
 
 function renderUms(){
  const s=S.sales,tot=s.reduce((a,x)=>a+x.total,0),pf=s.reduce((a,x)=>a+x.pf,0);
  const by={};s.forEach(x=>x.items.forEach(i=>{const k=i.e+" "+i.n;by[k]=(by[k]||0)+i.q}));
- $("#ums").innerHTML=`<div class="stat"><div class="box"><span class="mut">Umsatz</span><b>${fmt(tot)}</b></div><div class="box"><span class="mut">Verkäufe</span><b>${s.length}</b></div></div>
+ $("#ums").innerHTML=`<button class="big" style="flex:none" onclick="openKS()">🧾 Kassensturz (PDF)</button><div class="stat"><div class="box"><span class="mut">Umsatz</span><b>${fmt(tot)}</b></div><div class="box"><span class="mut">Verkäufe</span><b>${s.length}</b></div></div>
  <div class="box"><span class="mut">Davon Pfand (netto)</span> <b>${fmt(pf)}</b></div>
  <div class="box"><b>Verkaufte Artikel</b>${Object.keys(by).map(k=>`<div class="prow"><span class="t">${esc(k)}</span><b>${by[k]}×</b></div>`).join("")||'<p class="mut">Noch nichts verkauft.</p>'}</div>
  <div class="box"><b>Letzte Verkäufe</b>${s.slice(-15).reverse().map((x,i)=>`<div class="prow"><span class="t">${new Date(x.t).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} · ${x.items.map(i=>i.q+"× "+esc(i.e)).join(" ")}${x.ret?" ♻️"+x.ret:""}</span><b>${fmt(x.total)}</b></div>`).join("")}</div>
  <div class="row"><button class="sm" style="flex:1" onclick="undo()">↩️ Letzten Verkauf löschen</button><button class="sm red" onclick="resetAll()">Tag zurücksetzen</button></div>`;
 }
 function undo(){if(S.sales.length&&confirm("Letzten Verkauf löschen?")){S.sales.pop();save();renderUms()}}
-function resetAll(){if(confirm("Alle Verkäufe löschen? Produkte bleiben erhalten.")){S.sales=[];save();renderUms()}}
+function resetAll(){if(confirm("Alle Verkäufe löschen? Produkte bleiben erhalten.\n\nHast du den Kassensturz vorher als PDF gesichert?")){S.sales=[];S.ks=null;save();renderUms()}}
+
+
+/* ===== Kassensturz ===== */
+function report(){
+ const s=S.sales,by={};let items=0,pfIn=0,pfOut=0,tot=0,cupsOut=0,cupsBack=0;
+ s.forEach(x=>{
+  const r=x.pr??S.pfand,ret=x.ret||0,cups=x.cups??(r?Math.round(x.pf/r)+ret:ret);
+  pfIn+=cups*r;pfOut+=ret*r;cupsOut+=cups;cupsBack+=ret;tot+=x.total;
+  x.items.forEach(i=>{items+=i.q*i.p;const k=i.n+"|"+i.p;(by[k]=by[k]||{n:i.n,p:i.p,q:0}).q+=i.q});
+ });
+ const ts=s.map(x=>x.t);
+ return{s,items,pfIn,pfOut,tot,total:tot,cupsOut,cupsBack,arts:Object.values(by).sort((a,b)=>b.q*b.p-a.q*a.p),
+  first:ts.length?Math.min(...ts):0,last:ts.length?Math.max(...ts):0};
+}
+const ksData=()=>(S.ks=S.ks||{start:0,c:{}});
+const ksSum=()=>{const k=ksData();return DEN.reduce((a,[v])=>a+v*(k.c[v]||0),0)};
+const ksAny=()=>Object.values(ksData().c).some(n=>n>0);
+let canShare=false;
+try{canShare=!!(navigator.canShare&&navigator.canShare({files:[new File(["x"],"a.pdf",{type:"application/pdf"})]}))}catch(e){}
+function openKS(){$("#ksov").classList.add("on");renderKS()}
+function closeKS(){$("#ksov").classList.remove("on")}
+function renderKS(){
+ const r=report(),k=ksData();
+ $("#ks").innerHTML=`<b style="font-size:22px">🧾 Kassensturz</b>
+ <div class="box"><div class="prow"><span class="t">Verkäufe</span><b>${r.s.length}</b></div>
+ <div class="prow"><span class="t">Einnahmen gesamt<br><span class="mut">inkl. Pfand (netto)</span></span><b>${fmt(r.tot)}</b></div></div>
+ <div><label>Anfangsbestand / Wechselgeld (€)</label><input type="number" inputmode="decimal" step="0.5" id="kst" value="${k.start?k.start/100:""}" oninput="ksSet()"></div>
+ <div class="box"><b>Kasse zählen</b>${DEN.map(([v])=>`<div class="prow"><span class="t"><span class="chip" style="background:${col(v)}">${isBill(v)?"💶":"🪙"} ${label(v)}</span></span>
+ <input type="number" inputmode="numeric" min="0" data-v="${v}" value="${k.c[v]||""}" style="width:84px" oninput="ksSet()"><b id="ka${v}" style="min-width:84px;text-align:right">${fmt(v*(k.c[v]||0))}</b></div>`).join("")}</div>
+ <div id="kres"></div>
+ <div class="row"><button class="pf" onclick="closeKS()">Schließen</button><button class="big" onclick="pdf(false)">📄 PDF</button>${canShare?'<button class="big" onclick="pdf(true)">📤 Teilen</button>':""}</div>`;
+ ksCalc();
+}
+function ksSet(){
+ const k=ksData();
+ k.start=Math.round(parseFloat(($("#kst").value||"").replace(",","."))*100)||0;
+ document.querySelectorAll("[data-v]").forEach(i=>{const n=Math.max(0,parseInt(i.value)||0);k.c[i.dataset.v]=n;$("#ka"+i.dataset.v).textContent=fmt(n*i.dataset.v)});
+ save();ksCalc();
+}
+function ksCalc(){
+ const r=report(),k=ksData(),soll=k.start+r.tot,ist=ksSum();
+ let h=`<div class="box"><div class="prow"><span class="t">Soll-Bestand<br><span class="mut">Anfangsbestand + Einnahmen</span></span><b>${fmt(soll)}</b></div>`;
+ if(ksAny())h+=`<div class="prow"><span class="t">Gezählt (Ist)</span><b>${fmt(ist)}</b></div></div>`+(ist===soll
+  ?`<div class="chg"><div class="big2">Kasse stimmt ✔️</div></div>`
+  :ist>soll?`<div class="chg"><div>Überschuss</div><div class="big2">+${fmt(ist-soll)}</div></div>`
+  :`<div class="miss">Fehlbetrag ${fmt(soll-ist)}</div>`);
+ else h+=`<p class="mut" style="margin:6px 0 0">Zähle die Scheine und Münzen oben, um Soll und Ist zu vergleichen.</p></div>`;
+ $("#kres").innerHTML=h;
+}
+async function pdf(share){
+ const bytes=buildPdf(report(),ksData()),name=`Kassensturz_${new Date().toLocaleDateString("sv-SE")}.pdf`;
+ const blob=new Blob([bytes],{type:"application/pdf"});
+ if(share){try{const f=new File([blob],name,{type:"application/pdf"});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:"Kassensturz"});return}}catch(e){if(e&&e.name==="AbortError")return}}
+ const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);
+}
+
+/* Minimaler PDF-Generator (Helvetica, A4, ohne Bibliothek – läuft offline) */
+function buildPdf(r,k){
+ const W=595,H=842,M=44,AC="0.753 0.224 0.169 rg",INK="0.17 0.14 0.12 rg",MUT="0.48 0.42 0.38 rg",pages=[];let c,y;
+ const fx=v=>String(Math.round(v*100)/100);
+ const enc=s=>{let o="";for(const ch of String(s)){const n=ch.codePointAt(0);
+  if(n===0x20AC)o+="\x80";else if(n===0x2212||n===0x2013)o+="-";else if(n===0x202F)o+=" ";
+  else if((n>=32&&n<127)||(n>=160&&n<256))o+=ch}
+  return o.replace(/[\\()]/g,m=>"\\"+m)};
+ const aw=(s,sz,b)=>{let w=0;for(const ch of String(s))w+=/[0-9€]/.test(ch)?556:/[\s,.:]/.test(ch)?278:/[-−]/.test(ch)?333:ch==="×"?584:b?580:520;return w*sz/1000};
+ const np=()=>{c=[];pages.push(c);y=H-M};
+ const T=(x,yy,s,o={})=>{const sz=o.s||10,w=o.a?aw(s,sz,o.b):0,xx=o.a==="r"?x-w:o.a==="c"?x-w/2:x;
+  c.push(`${o.c||INK} BT /F${o.b?2:1} ${sz} Tf ${fx(xx)} ${fx(yy)} Td (${enc(s)}) Tj ET`)};
+ const R=(x,yy,w,h,col)=>c.push(`${col} ${fx(x)} ${fx(yy)} ${fx(w)} ${fx(h)} re f`);
+ const L=(x1,yy,x2)=>c.push(`0.85 0.8 0.75 RG 0.6 w ${fx(x1)} ${fx(yy)} m ${fx(x2)} ${fx(yy)} l S`);
+ const need=h=>{if(y-h<M+16)np()};
+ const H2=t=>{need(70);y-=12;T(M,y,t,{s:13,b:1,c:AC});y-=7;L(M,y,W-M);y-=17};
+ const KV=(a,v,o={})=>{need(20);T(M,y,a,{b:o.b,s:11,c:o.lc});T(W-M,y,v,{a:"r",b:o.b,s:11,c:o.c});y-=o.h||17};
+ const TH=cols=>{need(26);R(M,y-5,W-2*M,18,"0.95 0.92 0.88 rg");cols.forEach(([t,x,a])=>T(x,y,t,{b:1,s:10,a}));y-=19};
+ const TR=(cols,b)=>{need(18);cols.forEach(([t,x,a])=>T(x,y,t,{b,s:10,a}));y-=5;L(M,y,W-M);y-=13};
+ const now=new Date(),tm=t=>new Date(t).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}),
+  dt=t=>new Date(t).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+ const RED="0.753 0.224 0.169 rg",GRN="0.18 0.49 0.31 rg";
+
+ np();R(0,H-80,W,80,AC);
+ T(M,H-50,"Kassensturz",{s:26,b:1,c:"1 1 1 rg"});T(M,H-68,"Weihnachtsmaler-Kasse",{s:10,c:"1 0.9 0.88 rg"});
+ T(W-M,H-42,now.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),{s:11,a:"r",c:"1 1 1 rg"});
+ T(W-M,H-58,"erstellt um "+tm(now)+" Uhr",{s:10,a:"r",c:"1 0.9 0.88 rg"});
+ y=H-80-14;
+
+ H2("Zusammenfassung");
+ KV("Anzahl Verkäufe",String(r.s.length));
+ if(r.s.length)KV("Erster / letzter Verkauf",dt(r.first)+"  -  "+dt(r.last));
+ KV("Artikelumsatz",fmt(r.items));
+ KV("Pfand eingenommen ("+r.cupsOut+" Becher)","+ "+fmt(r.pfIn));
+ KV("Pfand zurückgezahlt ("+r.cupsBack+" Becher)","- "+fmt(r.pfOut));
+ L(M,y+8,W-M);y-=4;
+ KV("Einnahmen gesamt",fmt(r.tot),{b:1,s:13});
+ KV("Offenes Pfand (noch nicht zurückgegeben: "+(r.cupsOut-r.cupsBack)+" Becher)",fmt(r.pfIn-r.pfOut),{lc:MUT,c:MUT});
+
+ H2("Verkaufte Artikel");
+ if(r.arts.length){
+  TH([["Artikel",M],["Menge",330,"r"],["Einzelpreis",440,"r"],["Summe",W-M,"r"]]);
+  r.arts.forEach(a=>TR([[a.n,M],[a.q+"×",330,"r"],[fmt(a.p),440,"r"],[fmt(a.q*a.p),W-M,"r"]]));
+  TR([["Summe Artikel",M],[String(r.arts.reduce((s,a)=>s+a.q,0))+"×",330,"r"],["",440,"r"],[fmt(r.items),W-M,"r"]],1);
+ }else KV("Noch nichts verkauft.","",{lc:MUT});
+
+ H2("Kassenbestand");
+ const soll=k.start+r.tot,ist=ksSum();
+ KV("Anfangsbestand (Wechselgeld)",fmt(k.start));
+ KV("+ Einnahmen",fmt(r.tot));
+ L(M,y+8,W-M);y-=4;
+ KV("Soll-Bestand",fmt(soll),{b:1});
+ if(ksAny()){
+  y-=6;TH([["Stückelung",M],["Anzahl",330,"r"],["Betrag",W-M,"r"]]);
+  DEN.filter(([v])=>(k.c[v]||0)>0).forEach(([v])=>TR([[label(v),M],[k.c[v]+"×",330,"r"],[fmt(v*k.c[v]),W-M,"r"]]));
+  y-=2;
+  KV("Gezählter Bestand (Ist)",fmt(ist),{b:1});
+  const d=ist-soll;
+  KV("Differenz (Ist - Soll)",d===0?"0,00 € - Kasse stimmt":(d>0?"+":"")+fmt(d)+(d>0?"  Überschuss":"  Fehlbetrag"),{b:1,c:d===0?GRN:RED});
+  KV("Tageseinnahmen laut Zählung (Ist - Anfangsbestand)",fmt(ist-k.start),{lc:MUT,c:MUT});
+ }else{T(M,y,"Kein Kassenbestand gezählt.",{c:MUT,s:10});y-=16}
+ need(70);y-=30;L(M,y,M+200);L(W-M-200,y,W-M);y-=12;
+ T(M,y,"Gezählt von",{s:9,c:MUT});T(W-M-200,y,"Datum / Unterschrift",{s:9,c:MUT});y-=8;
+
+ if(r.s.length){
+  H2("Alle Verkäufe");
+  const head=()=>TH([["Zeit",M],["Artikel",M+46],["Pfand",470,"r"],["Summe",W-M,"r"]]);head();
+  r.s.forEach(x=>{
+   if(y-18<M+16){np();head()}
+   let t=x.items.map(i=>i.q+"× "+i.n).join(", ")+(x.ret?(x.items.length?", ":"")+"Pfand zurück: "+x.ret:"");
+   if(t.length>62)t=t.slice(0,59)+"...";
+   TR([[tm(x.t),M],[t,M+46],[x.pf?fmt(x.pf):"-",470,"r"],[fmt(x.total),W-M,"r"]]);
+  });
+ }
+
+ pages.forEach((p,i)=>p.push(`${MUT} BT /F1 8 Tf ${M} 24 Td (Seite ${i+1} von ${pages.length}) Tj ET`));
+ const ob=["<< /Type /Catalog /Pages 2 0 R >>",
+  `<< /Type /Pages /Kids [${pages.map((_,i)=>(5+2*i)+" 0 R").join(" ")}] /Count ${pages.length} >>`,
+  "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+  "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"];
+ pages.forEach((p,i)=>{const s=p.join("\n");
+  ob.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${6+2*i} 0 R >>`);
+  ob.push(`<< /Length ${s.length} >>\nstream\n${s}\nendstream`)});
+ let out="%PDF-1.4\n";const off=[];
+ ob.forEach((b,i)=>{off.push(out.length);out+=`${i+1} 0 obj\n${b}\nendobj\n`});
+ const xr=out.length;
+ out+=`xref\n0 ${ob.length+1}\n0000000000 65535 f \n`+off.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${ob.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
+ return Uint8Array.from(out,ch=>ch.charCodeAt(0));
+}
 
 function renderProd(){
  $("#prod").innerHTML=`<button class="big" style="flex:none" onclick="edit(0)">➕ Neues Produkt</button>
@@ -202,21 +365,22 @@ function edit(id){
  <div class="emo">${EMO.map(e=>`<button onclick="$('#fe').value='${e}'">${e}</button>`).join("")}</div>
  <div><label>Name</label><input type="text" id="fn" value="${esc(p.n)}"></div>
  <div><label>Preis (€)</label><input type="number" inputmode="decimal" step="0.1" id="fp" value="${p.p?p.p/100:""}"></div>
+ <div><label>🔍 Kachelgröße: <b id="fzv">${Math.round((p.z||1)*100)}%</b></label><input type="range" id="fz" min="0.8" max="2.4" step="0.2" value="${p.z||1}" oninput="$('#fzv').textContent=Math.round(this.value*100)+'%'"></div>
  <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="fd" ${p.d?"checked":""} style="width:30px;height:30px"> ♻️ Mit Pfand</label>
  <div class="row"><button class="pf" onclick="$('#edov').classList.remove('on')">Abbrechen</button>${id?`<button class="pf red" onclick="del(${id})">Löschen</button>`:""}<button class="big" onclick="saveP(${id})">Speichern</button></div>`;
  $("#edov").classList.add("on");
 }
 function saveP(id){
- const o={e:$("#fe").value.trim()||"🎨",n:$("#fn").value.trim(),p:Math.round(parseFloat($("#fp").value.replace(",","."))*100)||0,d:$("#fd").checked};
+ const o={e:$("#fe").value.trim()||"🎨",n:$("#fn").value.trim(),p:Math.round(parseFloat($("#fp").value.replace(",","."))*100)||0,d:$("#fd").checked,z:parseFloat($("#fz").value)||1};
  if(!o.n)return;
  if(id)Object.assign(S.products.find(x=>x.id==id),o);else S.products.push({id:Date.now(),...o});
  save();$("#edov").classList.remove("on");render();
 }
 function del(id){if(confirm("Produkt löschen?")){S.products=S.products.filter(x=>x.id!=id);delete cart[id];save();$("#edov").classList.remove("on");render()}}
 function render(){renderKasse();renderUms();renderProd()}
-render();
 let dp=null;
 const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+render();
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();dp=e;showInstall()});
 window.addEventListener("appinstalled",()=>{dp=null;showInstall()});
 function showInstall(){
