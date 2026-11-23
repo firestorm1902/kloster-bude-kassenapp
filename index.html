@@ -99,6 +99,7 @@ input[type=range]{width:100%;height:36px;accent-color:var(--acc)}
 <div class="ov" id="edov"><div class="sheet" id="ed"></div></div>
 <div class="ov" id="ksov"><div class="sheet" id="ks"></div></div>
 <script>
+const APP_VERSION="1.4",APP_DATE="23.11.2026";
 const KEY="malerkasse_v1";
 const DEF={pfand:300,products:[
 {id:1,e:"🍷",n:"Glühwein",p:400,d:true},{id:2,e:"🧃",n:"Kinderpunsch",p:300,d:true},
@@ -337,7 +338,7 @@ function buildPdf(r,k){
   });
  }
 
- pages.forEach((p,i)=>p.push(`${MUT} BT /F1 8 Tf ${M} 24 Td (Seite ${i+1} von ${pages.length}) Tj ET`));
+ pages.forEach((p,i)=>p.push(`${MUT} BT /F1 8 Tf ${M} 24 Td (Seite ${i+1} von ${pages.length}  -  Kasse v${APP_VERSION}) Tj ET`));
  const ob=["<< /Type /Catalog /Pages 2 0 R >>",
   `<< /Type /Pages /Kids [${pages.map((_,i)=>(5+2*i)+" 0 R").join(" ")}] /Count ${pages.length} >>`,
   "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
@@ -352,11 +353,21 @@ function buildPdf(r,k){
  return Uint8Array.from(out,ch=>ch.charCodeAt(0));
 }
 
+async function refreshApp(){
+ if(!navigator.onLine){alert("Keine Internetverbindung – Aktualisieren ist nur online möglich.");return}
+ try{const r=await fetch("sw.js?_="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0}
+ catch(e){alert("Server nicht erreichbar – die App bleibt unverändert (offline weiter nutzbar).");return}
+ if(!confirm("App jetzt neu laden? Verkäufe und Produkte bleiben erhalten."))return;
+ try{if("serviceWorker"in navigator)await Promise.all((await navigator.serviceWorker.getRegistrations()).map(r=>r.unregister()));
+  if(window.caches)await Promise.all((await caches.keys()).map(k=>caches.delete(k)))}catch(e){}
+ location.reload();
+}
 function renderProd(){
  $("#prod").innerHTML=`<button class="big" style="flex:none" onclick="edit(0)">➕ Neues Produkt</button>
  <div class="box">${S.products.map(p=>`<div class="prow"><span class="e">${esc(p.e)}</span><span class="t">${esc(p.n)}<br><span class="mut">${fmt(p.p)}${p.d?" · mit Pfand":""}</span></span><button class="sm" onclick="edit(${p.id})">✏️</button></div>`).join("")}</div>
  <div class="box"><label>♻️ Pfand pro Becher/Tasse (€)</label><input type="number" inputmode="decimal" step="0.1" value="${S.pfand/100}" onchange="S.pfand=Math.round(parseFloat(this.value.replace(',','.'))*100)||0;save()"></div>
  <div class="box" id="inst" style="display:none"><b>📲 App installieren</b><p class="mut" id="insttxt"></p><button class="big" id="instbtn" style="width:100%;flex:none;display:none" onclick="doInstall()">Installieren</button></div>
+ <div class="box"><b>ℹ️ App</b><p class="mut" style="margin:6px 0 10px">Version ${APP_VERSION} · ${APP_DATE}<br>Verkäufe und Produkte bleiben beim Aktualisieren erhalten.</p><button class="big" style="width:100%;flex:none" onclick="refreshApp()">🔄 App aktualisieren</button></div>
  <p class="mut">Alle Daten werden nur lokal in diesem Browser gespeichert.</p>`;
  showInstall();
 }
