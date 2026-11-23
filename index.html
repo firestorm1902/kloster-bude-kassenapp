@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weihnachtsmaler-Kasse</title>
+<meta name="theme-color" content="#c0392b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kasse">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{--bg:#fbf6ee;--card:#fff;--ink:#2b2320;--mut:#7a6a60;--acc:#c0392b;--grn:#2e7d4f;--line:#e6dccf;--sel:#fde8e4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1816;--card:#2a2421;--ink:#f3ebe3;--mut:#b3a498;--acc:#e8604f;--grn:#4fb97d;--line:#42392f;--sel:#4a2a26}}
+:root[data-theme="dark"]{--bg:#1c1816;--card:#2a2421;--ink:#f3ebe3;--mut:#b3a498;--acc:#e8604f;--grn:#4fb97d;--line:#42392f;--sel:#4a2a26}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:17px system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;border:0;border-radius:16px;background:var(--card);box-shadow:0 2px 0 var(--line),0 0 0 2px var(--line) inset;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.96)}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+.view{display:none;flex:1;min-height:0}.view.on{display:flex}
+#kasse{gap:10px;padding:10px;flex-direction:column}
+.grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;align-content:start}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:12px 6px;min-height:118px;position:relative}
+.tile .e{font-size:48px;line-height:1}.tile .n{font-weight:700;text-align:center;font-size:16px}.tile .p{color:var(--mut);font-size:15px}
+.badge{position:absolute;top:6px;right:6px;background:var(--acc);color:#fff;min-width:30px;height:30px;border-radius:15px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 8px}
+.cart{background:var(--card);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 0 0 2px var(--line) inset}
+.lines{max-height:26vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.line{display:flex;align-items:center;gap:8px}.line .t{flex:1;font-weight:600}
+.q{width:46px;height:46px;font-size:26px;font-weight:800;padding:0}
+.row{display:flex;gap:8px}
+.big{flex:1;height:64px;font-size:22px;font-weight:800;background:var(--grn);color:#fff;box-shadow:none}
+.big:disabled{opacity:.4}
+.pf{height:64px;padding:0 14px;font-weight:700;background:var(--sel)}
+.tot{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;font-size:28px}
+.tot small{font-size:15px;color:var(--mut);font-weight:500}
+.mut{color:var(--mut);font-size:15px}
+@media (min-width:820px){#kasse{flex-direction:row}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.cart{width:340px;flex:none}.lines{max-height:none;flex:1}}
+nav{display:flex;gap:8px;padding:8px 10px;background:var(--card);border-top:2px solid var(--line)}
+nav button{flex:1;height:64px;font-size:15px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:none;background:transparent}
+nav button span{font-size:30px;line-height:1}nav button.on{background:var(--sel);color:var(--acc)}
+.page{padding:12px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px}
+.box{background:var(--card);border-radius:16px;padding:12px;box-shadow:0 0 0 2px var(--line) inset}
+.stat{display:flex;gap:10px}.stat .box{flex:1;text-align:center}.stat b{display:block;font-size:28px}
+.prow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.prow .e{font-size:34px}.prow .t{flex:1;font-weight:600}
+.sm{height:48px;padding:0 16px;font-weight:700}
+.red{background:var(--acc);color:#fff;box-shadow:none}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:9}
+.ov.on{display:flex}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:96%;overflow-y:auto;border-radius:22px 22px 0 0;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.den{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.bill,.coin{height:64px;font-weight:800;font-size:19px;color:#fff;box-shadow:none;position:relative}
+.coin{border-radius:50%;width:64px;justify-self:center;font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-height:34px}
+.chip{padding:4px 10px;border-radius:999px;color:#fff;font-weight:800}.chip.c{border-radius:999px}
+.chg{background:var(--grn);color:#fff;border-radius:16px;padding:12px}
+.chg .big2{font-size:34px;font-weight:800}
+.chg .chip{background:rgba(255,255,255,.22);font-size:20px}
+.miss{background:var(--acc);color:#fff;border-radius:16px;padding:12px;font-size:24px;font-weight:800}
+input[type=text],input[type=number]{font:inherit;width:100%;height:52px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);padding:0 12px;user-select:text}
+label{font-weight:600;display:block;margin-bottom:4px}
+.emo{display:flex;flex-wrap:wrap;gap:6px}.emo button{width:48px;height:48px;font-size:26px;padding:0}
+</style>
+</head>
+<body>
+<main>
+<section class="view on" id="kasse">
+ <div class="grid" id="grid"></div>
+ <div class="cart">
+  <div class="lines" id="lines"></div>
+  <div class="tot"><span>Summe</span><span id="sum">0,00 €</span></div>
+  <div class="mut" id="pfinfo"></div>
+  <div class="row">
+   <button class="pf" onclick="ret(1)">♻️ Pfand zurück <span id="retn"></span></button>
+   <button class="pf" onclick="clearCart()">🗑️</button>
+  </div>
+  <div class="row"><button class="big" id="payb" onclick="openPay()">💶 Kassieren</button></div>
+ </div>
+</section>
+<section class="view" id="umsatz"><div class="page" id="ums"></div></section>
+<section class="view" id="produkte"><div class="page" id="prod"></div></section>
+</main>
+<nav>
+ <button class="on" data-v="kasse"><span>🛒</span>Kasse</button>
+ <button data-v="umsatz"><span>📊</span>Umsatz</button>
+ <button data-v="produkte"><span>🎨</span>Produkte</button>
+</nav>
+<div class="ov" id="payov"><div class="sheet" id="pay"></div></div>
+<div class="ov" id="edov"><div class="sheet" id="ed"></div></div>
+<script>
+const KEY="malerkasse_v1";
+const DEF={pfand:300,products:[
+{id:1,e:"🍷",n:"Glühwein",p:400,d:true},{id:2,e:"🧃",n:"Kinderpunsch",p:300,d:true},
+{id:3,e:"☕",n:"Kakao",p:350,d:true},{id:4,e:"🧇",n:"Waffel",p:300,d:false},
+{id:5,e:"🎨",n:"Malen",p:500,d:false},{id:6,e:"🎄",n:"Karte",p:250,d:false},{id:7,e:"🖼️",n:"Bild",p:800,d:false}],
+sales:[]};
+let S;try{S=JSON.parse(localStorage.getItem(KEY))||null}catch(e){S=null}
+if(!S||!Array.isArray(S.products))S=JSON.parse(JSON.stringify(DEF));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const $=s=>document.querySelector(s);
+const fmt=c=>(c/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let cart={},retn=0,given=[];
+
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x==b));
+ document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==b.dataset.v));
+ render()});
+
+function calc(){
+ let items=0,cups=0;
+ S.products.forEach(p=>{const q=cart[p.id]||0;items+=q*p.p;if(p.d)cups+=q});
+ return{items,cups,pf:(cups-retn)*S.pfand,total:items+(cups-retn)*S.pfand};
+}
+function add(id,n){cart[id]=Math.max(0,(cart[id]||0)+n);if(!cart[id])delete cart[id];renderKasse()}
+function ret(n){retn=Math.max(0,retn+n);renderKasse()}
+function clearCart(){cart={};retn=0;renderKasse()}
+
+function renderKasse(){
+ $("#grid").innerHTML=S.products.map(p=>`<button class="tile" onclick="add(${p.id},1)">
+ ${cart[p.id]?`<span class="badge">${cart[p.id]}</span>`:""}<span class="e">${esc(p.e)}</span><span class="n">${esc(p.n)}</span>
+ <span class="p">${fmt(p.p)}${p.d?" + Pfand":""}</span></button>`).join("")||'<p class="mut">Noch keine Produkte – im Tab „Produkte“ anlegen.</p>';
+ const c=calc();
+ $("#lines").innerHTML=S.products.filter(p=>cart[p.id]).map(p=>`<div class="line"><span style="font-size:30px">${esc(p.e)}</span>
+ <span class="t">${esc(p.n)}<br><span class="mut">${fmt(p.p*cart[p.id])}</span></span>
+ <button class="q" onclick="add(${p.id},-1)">−</button><b style="min-width:22px;text-align:center">${cart[p.id]}</b><button class="q" onclick="add(${p.id},1)">+</button></div>`).join("")
+ +(retn?`<div class="line"><span style="font-size:30px">♻️</span><span class="t">Pfand zurück<br><span class="mut">−${fmt(retn*S.pfand)}</span></span><button class="q" onclick="ret(-1)">−</button><b style="min-width:22px;text-align:center">${retn}</b><button class="q" onclick="ret(1)">+</button></div>`:"");
+ $("#sum").textContent=fmt(c.total);
+ $("#pfinfo").textContent=(c.cups||retn)?`inkl. Pfand: ${c.cups} × ${fmt(S.pfand)}${retn?` − ${retn} zurück`:""} = ${fmt(c.pf)}`:"";
+ $("#retn").textContent=retn?"("+retn+")":"";
+ $("#payb").disabled=!(Object.keys(cart).length||retn);
+}
+
+const BILLS=[[10000,"#7d8f69"],[5000,"#d98a3d"],[2000,"#4a7fbf"],[1000,"#d6564f"],[500,"#8a8d8f"]];
+const COINS=[[200,"#b5a05a"],[100,"#a8a8a8"],[50,"#c9a24a"],[20,"#c9a24a"],[10,"#c9a24a"],[5,"#b5683d"],[2,"#b5683d"],[1,"#b5683d"]];
+const label=v=>v>=100?(v/100)+" €":v+" ct";
+const isBill=v=>v>=500;
+const col=v=>(BILLS.concat(COINS).find(x=>x[0]==v)||[0,"#888"])[1];
+function breakdown(c){const r=[];for(const [v] of BILLS.concat(COINS)){const n=Math.floor(c/v);if(n){r.push([v,n]);c-=n*v}}return r}
+const chips=a=>a.map(([v,n])=>`<span class="chip" style="background:${col(v)}">${n}× ${isBill(v)?"💶":"🪙"} ${label(v)}</span>`).join("");
+
+function openPay(){given=[];$("#payov").classList.add("on");renderPay()}
+function closePay(){$("#payov").classList.remove("on")}
+function g(v){given.push(v);renderPay()}
+function renderPay(){
+ const c=calc(),sum=given.reduce((a,b)=>a+b,0),diff=sum-c.total;
+ const cnt={};given.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+ const gb=Object.keys(cnt).map(Number).sort((a,b)=>b-a).map(v=>[v,cnt[v]]);
+ const btn=(v,b)=>`<button class="${b?"bill":"coin"}" style="background:${col(v)}" onclick="g(${v})">${label(v)}</button>`;
+ let res="";
+ if(c.total<0&&!given.length)res=`<div class="chg"><div>Auszahlen</div><div class="big2">${fmt(-c.total)}</div><div class="chips">${chips(breakdown(-c.total))}</div></div>`;
+ else if(given.length&&diff<0)res=`<div class="miss">Es fehlen noch ${fmt(-diff)}</div>`;
+ else if(given.length)res=`<div class="chg"><div>Rückgeld</div><div class="big2">${fmt(diff)}</div>${diff?`<div class="chips">${chips(breakdown(diff))}</div>`:"<div>Passend ✔️</div>"}</div>`;
+ const ok=c.total<0||(given.length&&diff>=0);
+ $("#pay").innerHTML=`<div class="tot"><span>Zu zahlen</span><span>${fmt(c.total)}</span></div>
+ <div class="mut">Gegeben: <b>${fmt(sum)}</b></div>
+ <div class="chips">${chips(gb)||'<span class="mut">Tippe die erhaltenen Scheine/Münzen an</span>'}</div>
+ <div class="den">${BILLS.map(x=>btn(x[0],1)).join("")}</div>
+ <div class="den">${COINS.map(x=>btn(x[0],0)).join("")}</div>
+ <div class="row"><button class="pf" style="flex:1" onclick="given=breakdown(${Math.max(c.total,0)}).flatMap(([v,n])=>Array(n).fill(v));renderPay()">✅ Passend</button>
+ <button class="pf" onclick="given.pop();renderPay()">↩️</button><button class="pf" onclick="given=[];renderPay()">🗑️</button></div>
+ ${res}
+ <div class="row"><button class="pf" onclick="closePay()">Zurück</button><button class="big" ${ok?"":"disabled"} onclick="finish()">✔️ Fertig</button></div>`;
+}
+function finish(){
+ const c=calc(),sum=given.reduce((a,b)=>a+b,0);
+ S.sales.push({t:Date.now(),items:S.products.filter(p=>cart[p.id]).map(p=>({e:p.e,n:p.n,q:cart[p.id],p:p.p})),pf:c.pf,ret:retn,total:c.total,given:sum});
+ save();closePay();clearCart();
+}
+
+function renderUms(){
+ const s=S.sales,tot=s.reduce((a,x)=>a+x.total,0),pf=s.reduce((a,x)=>a+x.pf,0);
+ const by={};s.forEach(x=>x.items.forEach(i=>{const k=i.e+" "+i.n;by[k]=(by[k]||0)+i.q}));
+ $("#ums").innerHTML=`<div class="stat"><div class="box"><span class="mut">Umsatz</span><b>${fmt(tot)}</b></div><div class="box"><span class="mut">Verkäufe</span><b>${s.length}</b></div></div>
+ <div class="box"><span class="mut">Davon Pfand (netto)</span> <b>${fmt(pf)}</b></div>
+ <div class="box"><b>Verkaufte Artikel</b>${Object.keys(by).map(k=>`<div class="prow"><span class="t">${esc(k)}</span><b>${by[k]}×</b></div>`).join("")||'<p class="mut">Noch nichts verkauft.</p>'}</div>
+ <div class="box"><b>Letzte Verkäufe</b>${s.slice(-15).reverse().map((x,i)=>`<div class="prow"><span class="t">${new Date(x.t).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} · ${x.items.map(i=>i.q+"× "+esc(i.e)).join(" ")}${x.ret?" ♻️"+x.ret:""}</span><b>${fmt(x.total)}</b></div>`).join("")}</div>
+ <div class="row"><button class="sm" style="flex:1" onclick="undo()">↩️ Letzten Verkauf löschen</button><button class="sm red" onclick="resetAll()">Tag zurücksetzen</button></div>`;
+}
+function undo(){if(S.sales.length&&confirm("Letzten Verkauf löschen?")){S.sales.pop();save();renderUms()}}
+function resetAll(){if(confirm("Alle Verkäufe löschen? Produkte bleiben erhalten.")){S.sales=[];save();renderUms()}}
+
+function renderProd(){
+ $("#prod").innerHTML=`<button class="big" style="flex:none" onclick="edit(0)">➕ Neues Produkt</button>
+ <div class="box">${S.products.map(p=>`<div class="prow"><span class="e">${esc(p.e)}</span><span class="t">${esc(p.n)}<br><span class="mut">${fmt(p.p)}${p.d?" · mit Pfand":""}</span></span><button class="sm" onclick="edit(${p.id})">✏️</button></div>`).join("")}</div>
+ <div class="box"><label>♻️ Pfand pro Becher/Tasse (€)</label><input type="number" inputmode="decimal" step="0.1" value="${S.pfand/100}" onchange="S.pfand=Math.round(parseFloat(this.value.replace(',','.'))*100)||0;save()"></div>
+ <div class="box" id="inst" style="display:none"><b>📲 App installieren</b><p class="mut" id="insttxt"></p><button class="big" id="instbtn" style="width:100%;flex:none;display:none" onclick="doInstall()">Installieren</button></div>
+ <p class="mut">Alle Daten werden nur lokal in diesem Browser gespeichert.</p>`;
+ showInstall();
+}
+const EMO=["🍷","☕","🧃","🍫","🧇","🍪","🥨","🍎","🎨","🖌️","🖼️","🎄","⭐","🎅","🦌","⛄","🎁","🕯️","❄️","🔔"];
+function edit(id){
+ const p=S.products.find(x=>x.id==id)||{id:0,e:"🎨",n:"",p:0,d:false};
+ $("#ed").innerHTML=`<b style="font-size:20px">${id?"Produkt bearbeiten":"Neues Produkt"}</b>
+ <div><label>Symbol</label><input type="text" id="fe" value="${esc(p.e)}" style="font-size:28px;text-align:center"></div>
+ <div class="emo">${EMO.map(e=>`<button onclick="$('#fe').value='${e}'">${e}</button>`).join("")}</div>
+ <div><label>Name</label><input type="text" id="fn" value="${esc(p.n)}"></div>
+ <div><label>Preis (€)</label><input type="number" inputmode="decimal" step="0.1" id="fp" value="${p.p?p.p/100:""}"></div>
+ <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="fd" ${p.d?"checked":""} style="width:30px;height:30px"> ♻️ Mit Pfand</label>
+ <div class="row"><button class="pf" onclick="$('#edov').classList.remove('on')">Abbrechen</button>${id?`<button class="pf red" onclick="del(${id})">Löschen</button>`:""}<button class="big" onclick="saveP(${id})">Speichern</button></div>`;
+ $("#edov").classList.add("on");
+}
+function saveP(id){
+ const o={e:$("#fe").value.trim()||"🎨",n:$("#fn").value.trim(),p:Math.round(parseFloat($("#fp").value.replace(",","."))*100)||0,d:$("#fd").checked};
+ if(!o.n)return;
+ if(id)Object.assign(S.products.find(x=>x.id==id),o);else S.products.push({id:Date.now(),...o});
+ save();$("#edov").classList.remove("on");render();
+}
+function del(id){if(confirm("Produkt löschen?")){S.products=S.products.filter(x=>x.id!=id);delete cart[id];save();$("#edov").classList.remove("on");render()}}
+function render(){renderKasse();renderUms();renderProd()}
+render();
+let dp=null;
+const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();dp=e;showInstall()});
+window.addEventListener("appinstalled",()=>{dp=null;showInstall()});
+function showInstall(){
+ const b=$("#inst");if(!b||standalone)return;
+ const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+ if(dp){b.style.display="";$("#insttxt").textContent="Als App auf dem Startbildschirm, auch ohne Internet nutzbar.";$("#instbtn").style.display=""}
+ else if(ios){b.style.display="";$("#insttxt").textContent="Tippe unten auf „Teilen“ und dann auf „Zum Home-Bildschirm“.";$("#instbtn").style.display="none"}
+}
+async function doInstall(){if(!dp)return;dp.prompt();await dp.userChoice;dp=null;showInstall()}
+if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
