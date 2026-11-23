@@ -99,7 +99,7 @@ input[type=range]{width:100%;height:36px;accent-color:var(--acc)}
 <div class="ov" id="edov"><div class="sheet" id="ed"></div></div>
 <div class="ov" id="ksov"><div class="sheet" id="ks"></div></div>
 <script>
-const APP_VERSION="1.4",APP_DATE="23.11.2026";
+const APP_VERSION="1.5",APP_DATE="23.11.2026";
 const KEY="malerkasse_v1";
 const DEF={pfand:300,products:[
 {id:1,e:"🍷",n:"Glühwein",p:400,d:true},{id:2,e:"🧃",n:"Kinderpunsch",p:300,d:true},
@@ -164,42 +164,51 @@ const col=v=>(BILLS.concat(COINS).find(x=>x[0]==v)||[0,"#888"])[1];
 function breakdown(c){const r=[];for(const [v] of BILLS.concat(COINS)){const n=Math.floor(c/v);if(n){r.push([v,n]);c-=n*v}}return r}
 const chips=a=>a.map(([v,n])=>`<span class="chip" style="background:${col(v)}">${n}× ${isBill(v)?"💶":"🪙"} ${label(v)}</span>`).join("");
 
-function openPay(){given=[];$("#payov").classList.add("on");renderPay()}
+let don=0,donPf=0;
+function openPay(){given=[];don=0;donPf=0;$("#payov").classList.add("on");renderPay()}
 function closePay(){$("#payov").classList.remove("on")}
 function g(v){given.push(v);renderPay()}
+function addDon(n){don=Math.max(0,don+n);if(!don)donPf=0;renderPay()}
+function donRest(){const c=calc(),sum=given.reduce((a,b)=>a+b,0),d=sum-(c.total+don);if(d>0)don+=d;renderPay()}
+function donPfand(){const a=retn*S.pfand;if(!a)return;if(donPf){don=Math.max(0,don-donPf);donPf=0}else{donPf=a;don+=a}renderPay()}
 function renderPay(){
- const c=calc(),sum=given.reduce((a,b)=>a+b,0),diff=sum-c.total;
+ const c=calc(),pay=c.total+don,sum=given.reduce((a,b)=>a+b,0),diff=sum-pay;
  const cnt={};given.forEach(v=>cnt[v]=(cnt[v]||0)+1);
  const gb=Object.keys(cnt).map(Number).sort((a,b)=>b-a).map(v=>[v,cnt[v]]);
  const btn=(v,b)=>`<button class="${b?"bill":"coin"}" style="background:${col(v)}" onclick="g(${v})">${label(v)}</button>`;
  let res="";
- if(c.total<0&&!given.length)res=`<div class="chg"><div>Auszahlen</div><div class="big2">${fmt(-c.total)}</div><div class="chips">${chips(breakdown(-c.total))}</div></div>`;
+ if(pay<0&&!given.length)res=`<div class="chg"><div>Auszahlen</div><div class="big2">${fmt(-pay)}</div><div class="chips">${chips(breakdown(-pay))}</div></div>`;
+ else if(pay===0&&!given.length&&don>0)res=`<div class="chg"><div class="big2">Nichts zu zahlen ✔️</div></div>`;
  else if(given.length&&diff<0)res=`<div class="miss">Es fehlen noch ${fmt(-diff)}</div>`;
  else if(given.length)res=`<div class="chg"><div>Rückgeld</div><div class="big2">${fmt(diff)}</div>${diff?`<div class="chips">${chips(breakdown(diff))}</div>`:"<div>Passend ✔️</div>"}</div>`;
- const ok=c.total<0||(given.length&&diff>=0);
- $("#pay").innerHTML=`<div class="tot"><span>Zu zahlen</span><span>${fmt(c.total)}</span></div>
+ const ok=pay<0||(pay===0&&don>0)||(given.length&&diff>=0);
+ $("#pay").innerHTML=`<div class="tot"><span>Zu zahlen</span><span>${fmt(pay)}</span></div>
+ ${don?`<div class="mut">davon Spende ❤️ <b>${fmt(don)}</b></div>`:""}
  <div class="mut">Gegeben: <b>${fmt(sum)}</b></div>
  <div class="chips">${chips(gb)||'<span class="mut">Tippe die erhaltenen Scheine/Münzen an</span>'}</div>
  <div class="den">${BILLS.map(x=>btn(x[0],1)).join("")}</div>
  <div class="den">${COINS.map(x=>btn(x[0],0)).join("")}</div>
- <div class="row"><button class="pf" style="flex:1" onclick="given=breakdown(${Math.max(c.total,0)}).flatMap(([v,n])=>Array(n).fill(v));renderPay()">✅ Passend</button>
+ <div class="row"><button class="pf" style="flex:1" onclick="given=breakdown(${Math.max(pay,0)}).flatMap(([v,n])=>Array(n).fill(v));renderPay()">✅ Passend</button>
  <button class="pf" onclick="given.pop();renderPay()">↩️</button><button class="pf" onclick="given=[];renderPay()">🗑️</button></div>
+ <div class="box" style="padding:10px"><div class="prow"><span class="t">❤️ Spende</span><b>${fmt(don)}</b></div>
+ <div class="row"><button class="sm" style="flex:1" onclick="donRest()">Rückgeld</button>${retn?`<button class="sm" style="flex:1" onclick="donPfand()">${donPf?"✔️ ":""}Pfand ${fmt(retn*S.pfand)}</button>`:""}<button class="sm" style="flex:1" onclick="addDon(50)">+0,50</button><button class="sm" style="flex:1" onclick="addDon(100)">+1 €</button><button class="sm" onclick="addDon(-don)">✖</button></div></div>
  ${res}
  <div class="row"><button class="pf" onclick="closePay()">Zurück</button><button class="big" ${ok?"":"disabled"} onclick="finish()">✔️ Fertig</button></div>`;
 }
 function finish(){
  const c=calc(),sum=given.reduce((a,b)=>a+b,0);
- S.sales.push({t:Date.now(),items:S.products.filter(p=>cart[p.id]).map(p=>({e:p.e,n:p.n,q:cart[p.id],p:p.p})),pf:c.pf,ret:retn,cups:c.cups,pr:S.pfand,total:c.total,given:sum});
+ S.sales.push({t:Date.now(),items:S.products.filter(p=>cart[p.id]).map(p=>({e:p.e,n:p.n,q:cart[p.id],p:p.p})),pf:c.pf,ret:retn,cups:c.cups,pr:S.pfand,total:c.total,don,donpf:donPf,given:sum});
  save();closePay();clearCart();
 }
 
 function renderUms(){
- const s=S.sales,tot=s.reduce((a,x)=>a+x.total,0),pf=s.reduce((a,x)=>a+x.pf,0);
+ const s=S.sales,tot=s.reduce((a,x)=>a+x.total,0),pf=s.reduce((a,x)=>a+x.pf,0),dn=s.reduce((a,x)=>a+(x.don||0),0);
  const by={};s.forEach(x=>x.items.forEach(i=>{const k=i.e+" "+i.n;by[k]=(by[k]||0)+i.q}));
  $("#ums").innerHTML=`<button class="big" style="flex:none" onclick="openKS()">🧾 Kassensturz (PDF)</button><div class="stat"><div class="box"><span class="mut">Umsatz</span><b>${fmt(tot)}</b></div><div class="box"><span class="mut">Verkäufe</span><b>${s.length}</b></div></div>
  <div class="box"><span class="mut">Davon Pfand (netto)</span> <b>${fmt(pf)}</b></div>
+ ${dn?`<div class="box"><span class="mut">Spenden ❤️</span> <b>${fmt(dn)}</b></div>`:""}
  <div class="box"><b>Verkaufte Artikel</b>${Object.keys(by).map(k=>`<div class="prow"><span class="t">${esc(k)}</span><b>${by[k]}×</b></div>`).join("")||'<p class="mut">Noch nichts verkauft.</p>'}</div>
- <div class="box"><b>Letzte Verkäufe</b>${s.slice(-15).reverse().map((x,i)=>`<div class="prow"><span class="t">${new Date(x.t).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} · ${x.items.map(i=>i.q+"× "+esc(i.e)).join(" ")}${x.ret?" ♻️"+x.ret:""}</span><b>${fmt(x.total)}</b></div>`).join("")}</div>
+ <div class="box"><b>Letzte Verkäufe</b>${s.slice(-15).reverse().map((x,i)=>`<div class="prow"><span class="t">${new Date(x.t).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} · ${x.items.map(i=>i.q+"× "+esc(i.e)).join(" ")}${x.ret?" ♻️"+x.ret:""}${x.don?" ❤️":""}</span><b>${fmt(x.total+(x.don||0))}</b></div>`).join("")}</div>
  <div class="row"><button class="sm" style="flex:1" onclick="undo()">↩️ Letzten Verkauf löschen</button><button class="sm red" onclick="resetAll()">Tag zurücksetzen</button></div>`;
 }
 function undo(){if(S.sales.length&&confirm("Letzten Verkauf löschen?")){S.sales.pop();save();renderUms()}}
@@ -208,14 +217,14 @@ function resetAll(){if(confirm("Alle Verkäufe löschen? Produkte bleiben erhalt
 
 /* ===== Kassensturz ===== */
 function report(){
- const s=S.sales,by={};let items=0,pfIn=0,pfOut=0,tot=0,cupsOut=0,cupsBack=0;
+ const s=S.sales,by={};let items=0,pfIn=0,pfOut=0,tot=0,cupsOut=0,cupsBack=0,don=0,donPf=0;
  s.forEach(x=>{
   const r=x.pr??S.pfand,ret=x.ret||0,cups=x.cups??(r?Math.round(x.pf/r)+ret:ret);
-  pfIn+=cups*r;pfOut+=ret*r;cupsOut+=cups;cupsBack+=ret;tot+=x.total;
+  pfIn+=cups*r;pfOut+=ret*r;cupsOut+=cups;cupsBack+=ret;tot+=x.total;don+=x.don||0;donPf+=x.donpf||0;
   x.items.forEach(i=>{items+=i.q*i.p;const k=i.n+"|"+i.p;(by[k]=by[k]||{n:i.n,p:i.p,q:0}).q+=i.q});
  });
  const ts=s.map(x=>x.t);
- return{s,items,pfIn,pfOut,tot,total:tot,cupsOut,cupsBack,arts:Object.values(by).sort((a,b)=>b.q*b.p-a.q*a.p),
+ return{s,items,pfIn,pfOut,tot,total:tot,don,donPf,cupsOut,cupsBack,arts:Object.values(by).sort((a,b)=>b.q*b.p-a.q*a.p),
   first:ts.length?Math.min(...ts):0,last:ts.length?Math.max(...ts):0};
 }
 const ksData=()=>(S.ks=S.ks||{start:0,c:{}});
@@ -229,7 +238,7 @@ function renderKS(){
  const r=report(),k=ksData();
  $("#ks").innerHTML=`<b style="font-size:22px">🧾 Kassensturz</b>
  <div class="box"><div class="prow"><span class="t">Verkäufe</span><b>${r.s.length}</b></div>
- <div class="prow"><span class="t">Einnahmen gesamt<br><span class="mut">inkl. Pfand (netto)</span></span><b>${fmt(r.tot)}</b></div></div>
+ <div class="prow"><span class="t">Einnahmen gesamt<br><span class="mut">inkl. Pfand (netto)</span></span><b>${fmt(r.tot)}</b></div>${r.don?`<div class="prow"><span class="t">Spenden ❤️</span><b>${fmt(r.don)}</b></div>`:""}</div>
  <div><label>Titel des Kassensturzes</label><input type="text" id="ktt" placeholder="Kassensturz" value="${esc(k.title||"")}" oninput="ksSet()"></div>
  <div><label>Anfangsbestand / Wechselgeld (€)</label><input type="number" inputmode="decimal" step="0.5" id="kst" value="${k.start?k.start/100:""}" oninput="ksSet()"></div>
  <div class="box"><b>Kasse zählen</b>${DEN.map(([v])=>`<div class="prow"><span class="t"><span class="chip" style="background:${col(v)}">${isBill(v)?"💶":"🪙"} ${label(v)}</span></span>
@@ -246,8 +255,8 @@ function ksSet(){
  save();ksCalc();
 }
 function ksCalc(){
- const r=report(),k=ksData(),soll=k.start+r.tot,ist=ksSum();
- let h=`<div class="box"><div class="prow"><span class="t">Soll-Bestand<br><span class="mut">Anfangsbestand + Einnahmen</span></span><b>${fmt(soll)}</b></div>`;
+ const r=report(),k=ksData(),soll=k.start+r.tot+r.don,ist=ksSum();
+ let h=`<div class="box"><div class="prow"><span class="t">Soll-Bestand<br><span class="mut">Anfangsbestand + Einnahmen${r.don?" + Spenden":""}</span></span><b>${fmt(soll)}</b></div>`;
  if(ksAny())h+=`<div class="prow"><span class="t">Gezählt (Ist)</span><b>${fmt(ist)}</b></div></div>`+(ist===soll
   ?`<div class="chg"><div class="big2">Kasse stimmt ✔️</div></div>`
   :ist>soll?`<div class="chg"><div>Überschuss</div><div class="big2">+${fmt(ist-soll)}</div></div>`
@@ -300,6 +309,7 @@ function buildPdf(r,k){
  KV("Pfand zurückgezahlt ("+r.cupsBack+" Becher)","- "+fmt(r.pfOut));
  L(M,y+8,W-M);y-=4;
  KV("Einnahmen gesamt",fmt(r.tot),{b:1,s:13});
+ if(r.don){KV("+ Spenden"+(r.donPf?" (davon aus Pfand: "+fmt(r.donPf)+")":""),fmt(r.don));L(M,y+8,W-M);y-=4;KV("Gesamt in der Kasse (inkl. Spenden)",fmt(r.tot+r.don),{b:1,s:13})}
  KV("Offenes Pfand (noch nicht zurückgegeben: "+(r.cupsOut-r.cupsBack)+" Becher)",fmt(r.pfIn-r.pfOut),{lc:MUT,c:MUT});
 
  H2("Verkaufte Artikel");
@@ -310,9 +320,10 @@ function buildPdf(r,k){
  }else KV("Noch nichts verkauft.","",{lc:MUT});
 
  H2("Kassenbestand");
- const soll=k.start+r.tot,ist=ksSum();
+ const soll=k.start+r.tot+r.don,ist=ksSum();
  KV("Anfangsbestand (Wechselgeld)",fmt(k.start));
  KV("+ Einnahmen",fmt(r.tot));
+ if(r.don)KV("+ Spenden",fmt(r.don));
  L(M,y+8,W-M);y-=4;
  KV("Soll-Bestand",fmt(soll),{b:1});
  if(ksAny()){
@@ -332,9 +343,9 @@ function buildPdf(r,k){
   const head=()=>TH([["Zeit",M],["Artikel",M+46],["Pfand",470,"r"],["Summe",W-M,"r"]]);head();
   r.s.forEach(x=>{
    if(y-18<M+16){np();head()}
-   let t=x.items.map(i=>i.q+"× "+i.n).join(", ")+(x.ret?(x.items.length?", ":"")+"Pfand zurück: "+x.ret:"");
+   let t=x.items.map(i=>i.q+"× "+i.n).join(", ")+(x.ret?(x.items.length?", ":"")+"Pfand zurück: "+x.ret:"")+(x.don?", Spende "+fmt(x.don):"");
    if(t.length>62)t=t.slice(0,59)+"...";
-   TR([[tm(x.t),M],[t,M+46],[x.pf?fmt(x.pf):"-",470,"r"],[fmt(x.total),W-M,"r"]]);
+   TR([[tm(x.t),M],[t,M+46],[x.pf?fmt(x.pf):"-",470,"r"],[fmt(x.total+(x.don||0)),W-M,"r"]]);
   });
  }
 
